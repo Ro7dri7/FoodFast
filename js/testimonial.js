@@ -1,63 +1,104 @@
-//Constante DOM
+const carouselWrapper = document.querySelector('.carousel-wrapper');
 const containerTestimonials = document.querySelector('.container-testimonials');
-const allCardTestimonials = document.querySelectorAll('.testimonial'); //arreglo
-const prevBtn = document.querySelector('.btn-prev');
-const nextBtn = document.querySelector('.btn-next');
-//Constantes
-const totalCardTestimonials = allCardTestimonials.length;
+const testimonials = document.querySelectorAll('.testimonial');
+const indicators = document.querySelectorAll('.carousel-indicators .indicator');
+const btnPrev = document.querySelector('.btn-prev');
+const btnNext = document.querySelector('.btn-next');
 
-//Variables
 let currentIndex = 0;
-let autoPlayInterval;
+let autoSlideInterval = null;
+const slideInterval = 5000; // 5 seconds
 
-//funcion para actualizar posicion del carrusel
-const updateCarousel = () =>{
-    const offset = currentIndex * containerTestimonials.clientWidth;
-    containerTestimonials.scrollTo({
-        left: offset,
-        behavior: 'smooth'
-    })
+function updateCarousel() {
+    // Calculate the translation based on the current index
+    containerTestimonials.style.transform = `translateX(-${currentIndex * 33.333}%)`;
+    // Update indicators
+    indicators.forEach((indicator, index) => {
+        indicator.classList.toggle('active', index === currentIndex);
+        indicator.setAttribute('aria-selected', index === currentIndex ? 'true' : 'false');
+    });
+    // Update accessibility for testimonials
+    testimonials.forEach((testimonial, index) => {
+        testimonial.setAttribute('aria-hidden', index !== currentIndex ? 'true' : 'false');
+    });
 }
 
-//Boton siguientes - evento click
-nextBtn.addEventListener('click', () => {
-    //Si llego al final, vuelve al principio
-
-    //* (0 +1) % 3 -> 1 % 3 -> 1
-    //* (1 +1) % 3 -> 2 % 3 -> 2
-    //* (2 +1) % 3 -> 3 % 3 -> 0
-    
-    currentIndex = (currentIndex + 1) % totalCardTestimonials;
+function goToSlide(index) {
+    currentIndex = (index + testimonials.length) % testimonials.length;
     updateCarousel();
-    resetAutoPlay();
+    resetAutoSlide();
+}
+
+function nextSlide() {
+    goToSlide(currentIndex + 1);
+}
+
+function prevSlide() {
+    goToSlide(currentIndex - 1);
+}
+
+function startAutoSlide() {
+    autoSlideInterval = setInterval(nextSlide, slideInterval);
+}
+
+function resetAutoSlide() {
+    clearInterval(autoSlideInterval);
+    startAutoSlide();
+}
+
+// Event listeners for navigation buttons
+btnNext.addEventListener('click', nextSlide);
+btnPrev.addEventListener('click', prevSlide);
+
+// Event listeners for indicators
+indicators.forEach((indicator, index) => {
+    indicator.addEventListener('click', () => goToSlide(index));
+    indicator.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            goToSlide(index);
+        }
+    });
 });
 
-prevBtn.addEventListener('click', () => {
-    //Si esta al principio, vuelve al final
-
-    //* Indice va a ser 1
-    //* currentIndex = (1 - 1 +3) % 3 = 0
-    //* currentIndex = 0
-    //* currentIndex = (0 - 1 +3) % 3 = 2
-
-    currentIndex = (currentIndex - 1 + totalCardTestimonials) % totalCardTestimonials;
-    updateCarousel();
-    resetAutoPlay();
+// Event listeners for keyboard navigation on buttons
+[btnPrev, btnNext].forEach(btn => {
+    btn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            btn.click();
+        }
+    });
 });
 
-//funcion para activar el autoplay cada 5 segundos
-function startAutoPlay(){
-    autoPlayInterval = setInterval(() => {
-        currentIndex = (currentIndex + 1) % totalCardTestimonials;
-        updateCarousel();
-    }, 5000);
-}
+// Touch/swipe support
+let touchStartX = 0;
+let touchEndX = 0;
 
-//reiniciar autoplay cuando se navega manualmente
-function resetAutoPlay(){
-    clearInterval(autoPlayInterval);
-    startAutoPlay();
-}
+carouselWrapper.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+});
 
-//Iniciar autoplay
-startAutoPlay();
+carouselWrapper.addEventListener('touchmove', (e) => {
+    touchEndX = e.touches[0].clientX;
+});
+
+carouselWrapper.addEventListener('touchend', () => {
+    const swipeDistance = touchStartX - touchEndX;
+    if (swipeDistance > 50) {
+        nextSlide();
+    } else if (swipeDistance < -50) {
+        prevSlide();
+    }
+});
+
+// Initialize carousel
+testimonials.forEach((testimonial, index) => {
+    testimonial.setAttribute('aria-hidden', index !== 0 ? 'true' : 'false');
+});
+indicators[0].setAttribute('aria-selected', 'true');
+startAutoSlide();
+
+// Pause auto-slide on hover
+carouselWrapper.addEventListener('mouseenter', () => clearInterval(autoSlideInterval));
+carouselWrapper.addEventListener('mouseleave', startAutoSlide);
